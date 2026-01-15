@@ -25,11 +25,9 @@ test('Test on empty dir', () => {
     expect(outputs.errors[0]).toEqual(`Empty work-dir [${workDir}] - nothing to process`);
 });
 
-//Also used for shield demo
 test('Test on wrapper_17 dir', () => {
-    let realWorkDir = path.join(__dirname, addWinSupport('resources/maven/project/wrapper_17'));
-    removeDir(path.join(realWorkDir.toString(), 'target'));
-    let outputs = main.run(realWorkDir, -1, null, null, null, null, null);
+    removeDir(path.join(workDir.toString(), 'target'));
+    let outputs = main.run(workDir, -1, null, null, null, null, null);
     expect(outputs.result.get('scopes')).toEqual('compile, test');
     expect(outputs.result.get('scopes_all')).toEqual('compile, import, provided, runtime, system, test');
 
@@ -52,6 +50,15 @@ test('Test on wrapper_17 dir', () => {
     expect(outputs.result.get('license_list')).toEqual('AGPL:3, Apache License:2.0, BSD:3, CPE:1, EDL:1.0, EPL:1.0, EPL:2.0, GPL:2, LGPL:1, MIT:1');
     expect(outputs.result.get('license_limited_list')).toEqual('AGPL:3, EPL:1.0, EPL:2.0, GPL:2, LGPL:1');
 });
+
+if (process.env.CI !== 'true') {
+    // Also used for shield demo updates outside CI.
+    test('Update ShieldDemo.md', () => {
+        let realWorkDir = path.join(__dirname, addWinSupport('resources/maven/project/wrapper_17'));
+        removeDir(path.join(realWorkDir.toString(), 'target'));
+        main.run(realWorkDir, -1, null, null, null, null, null);
+    });
+}
 
 test('Test on wrapper_17 dir with scope excludes', () => {
     let outputs = main.run(workDir, -1, null, null, null, 'import, provided, runtime, system, test', null);
@@ -182,6 +189,5 @@ function copyDir(source: string, destination: string) {
 function addWinSupport(url: string): string {
     return process.platform === "win32" ? url.replace(/\//g, '\\') : url;
 }
-
 
 
