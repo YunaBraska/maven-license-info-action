@@ -291,45 +291,50 @@ const LICENSE_LIMIT_LIST = [
     'CC-BY-NC',
     'Artistic[-azAZ09]*(?!1)\\d+',
 ];
-try {
-    let workDir = core.getInput('work-dir');
-    let failLicenseRegex = core.getInput('fail-license-regex') || null;
-    let failDependencyRegex = core.getInput('fail-dependency-regex') || null;
-    let outputDir = core.getInput('output-dir') || null;
-    let deep = parseInt(core.getInput('deep')) || -1;
-    let excludeScopes = core.getInput('exclude-scopes') || null;
-    let nullToEmpty = core.getInput('null-to-empty') || null;
-    let workspace = ((_a = process.env['GITHUB_WORKSPACE']) === null || _a === void 0 ? void 0 : _a.toString()) || null;
-    if (!workDir || workDir === '.') {
-        workDir = getWorkingDirectory(workspace);
-    }
-    else if (!path_1.default.isAbsolute(workDir.toString())) {
-        outputDir = path_1.default.join(__dirname, workDir.toString());
-    }
-    if (outputDir === '.') {
-        outputDir = workDir;
-    }
-    let runResult = run(workDir, deep, failLicenseRegex, failDependencyRegex, outputDir, excludeScopes, !(0, common_processing_1.isEmpty)(nullToEmpty) ? nullToEmpty.toLowerCase() === 'true' : true);
-    let result = runResult.result;
-    result.set('GITHUB_WORKSPACE', workspace || null);
-    console.log(JSON.stringify(Object.fromEntries((0, common_processing_1.sortMap)(result)), null, 4));
-    result.forEach((value, key) => {
-        core.setOutput(key, value);
-    });
-    if (runResult.errors.length != 0) {
-        let errorMessage = '';
-        runResult.errors.forEach(error => {
-            errorMessage += `${error}${os_1.default.EOL}`;
+if (require.main === require.cache[eval('__filename')]) {
+    try {
+        let workDir = core.getInput('work-dir');
+        let failLicenseRegex = core.getInput('fail-license-regex') || null;
+        let failDependencyRegex = core.getInput('fail-dependency-regex') || null;
+        let outputDir = core.getInput('output-dir') || null;
+        let deep = parseInt(core.getInput('deep')) || -1;
+        let excludeScopes = core.getInput('exclude-scopes') || null;
+        let nullToEmpty = core.getInput('null-to-empty') || null;
+        const workspace = (_a = process.env.GITHUB_WORKSPACE) !== null && _a !== void 0 ? _a : process.cwd();
+        if (!workDir || workDir === '.') {
+            workDir = workspace;
+        }
+        else if (!path_1.default.isAbsolute(workDir)) {
+            workDir = path_1.default.join(workspace, workDir);
+        }
+        if (!outputDir || outputDir === '.') {
+            outputDir = workDir;
+        }
+        else if (!path_1.default.isAbsolute(outputDir)) {
+            outputDir = path_1.default.join(workDir, outputDir);
+        }
+        let runResult = run(workDir, deep, failLicenseRegex, failDependencyRegex, outputDir, excludeScopes, !(0, common_processing_1.isEmpty)(nullToEmpty) ? nullToEmpty.toLowerCase() === 'true' : true);
+        let result = runResult.result;
+        result.set('GITHUB_WORKSPACE', workspace || null);
+        console.log(JSON.stringify(Object.fromEntries((0, common_processing_1.sortMap)(result)), null, 4));
+        result.forEach((value, key) => {
+            core.setOutput(key, value);
         });
-        core.setFailed(errorMessage);
+        if (runResult.errors.length != 0) {
+            let errorMessage = '';
+            runResult.errors.forEach(error => {
+                errorMessage += `${error}${os_1.default.EOL}`;
+            });
+            core.setFailed(errorMessage);
+        }
     }
-}
-catch (e) {
-    if (typeof e === "string") {
-        core.setFailed(e.toUpperCase());
-    }
-    else if (e instanceof Error) {
-        core.setFailed(e.message);
+    catch (e) {
+        if (typeof e === "string") {
+            core.setFailed(e.toUpperCase());
+        }
+        else if (e instanceof Error) {
+            core.setFailed(e.message);
+        }
     }
 }
 function run(workDir, deep, failLicenseRegex, failDependencyRegex, outputDir, excludeScopes, nullToEmpty) {
