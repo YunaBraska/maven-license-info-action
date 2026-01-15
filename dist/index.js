@@ -291,47 +291,45 @@ const LICENSE_LIMIT_LIST = [
     'CC-BY-NC',
     'Artistic[-azAZ09]*(?!1)\\d+',
 ];
-if (require.main === require.cache[eval('__filename')]) {
-    try {
-        let workDir = core.getInput('work-dir');
-        let failLicenseRegex = core.getInput('fail-license-regex') || null;
-        let failDependencyRegex = core.getInput('fail-dependency-regex') || null;
-        let outputDir = core.getInput('output-dir') || null;
-        let deep = parseInt(core.getInput('deep')) || -1;
-        let excludeScopes = core.getInput('exclude-scopes') || null;
-        let nullToEmpty = core.getInput('null-to-empty') || null;
-        let workspace = ((_a = process.env['GITHUB_WORKSPACE']) === null || _a === void 0 ? void 0 : _a.toString()) || null;
-        if (!workDir || workDir === '.') {
-            workDir = getWorkingDirectory(workspace);
-        }
-        else if (!path_1.default.isAbsolute(workDir.toString())) {
-            outputDir = path_1.default.join(__dirname, workDir.toString());
-        }
-        if (outputDir === '.') {
-            outputDir = workDir;
-        }
-        let runResult = run(workDir, deep, failLicenseRegex, failDependencyRegex, outputDir, excludeScopes, !(0, common_processing_1.isEmpty)(nullToEmpty) ? nullToEmpty.toLowerCase() === 'true' : true);
-        let result = runResult.result;
-        result.set('GITHUB_WORKSPACE', workspace || null);
-        console.log(JSON.stringify(Object.fromEntries((0, common_processing_1.sortMap)(result)), null, 4));
-        result.forEach((value, key) => {
-            core.setOutput(key, value);
-        });
-        if (runResult.errors.length != 0) {
-            let errorMessage = '';
-            runResult.errors.forEach(error => {
-                errorMessage += `${error}${os_1.default.EOL}`;
-            });
-            core.setFailed(errorMessage);
-        }
+try {
+    let workDir = core.getInput('work-dir');
+    let failLicenseRegex = core.getInput('fail-license-regex') || null;
+    let failDependencyRegex = core.getInput('fail-dependency-regex') || null;
+    let outputDir = core.getInput('output-dir') || null;
+    let deep = parseInt(core.getInput('deep')) || -1;
+    let excludeScopes = core.getInput('exclude-scopes') || null;
+    let nullToEmpty = core.getInput('null-to-empty') || null;
+    let workspace = ((_a = process.env['GITHUB_WORKSPACE']) === null || _a === void 0 ? void 0 : _a.toString()) || null;
+    if (!workDir || workDir === '.') {
+        workDir = getWorkingDirectory(workspace);
     }
-    catch (e) {
-        if (typeof e === "string") {
-            core.setFailed(e.toUpperCase());
-        }
-        else if (e instanceof Error) {
-            core.setFailed(e.message);
-        }
+    else if (!path_1.default.isAbsolute(workDir.toString())) {
+        outputDir = path_1.default.join(__dirname, workDir.toString());
+    }
+    if (outputDir === '.') {
+        outputDir = workDir;
+    }
+    let runResult = run(workDir, deep, failLicenseRegex, failDependencyRegex, outputDir, excludeScopes, !(0, common_processing_1.isEmpty)(nullToEmpty) ? nullToEmpty.toLowerCase() === 'true' : true);
+    let result = runResult.result;
+    result.set('GITHUB_WORKSPACE', workspace || null);
+    console.log(JSON.stringify(Object.fromEntries((0, common_processing_1.sortMap)(result)), null, 4));
+    result.forEach((value, key) => {
+        core.setOutput(key, value);
+    });
+    if (runResult.errors.length != 0) {
+        let errorMessage = '';
+        runResult.errors.forEach(error => {
+            errorMessage += `${error}${os_1.default.EOL}`;
+        });
+        core.setFailed(errorMessage);
+    }
+}
+catch (e) {
+    if (typeof e === "string") {
+        core.setFailed(e.toUpperCase());
+    }
+    else if (e instanceof Error) {
+        core.setFailed(e.message);
     }
 }
 function run(workDir, deep, failLicenseRegex, failDependencyRegex, outputDir, excludeScopes, nullToEmpty) {
@@ -355,20 +353,16 @@ function run(workDir, deep, failLicenseRegex, failDependencyRegex, outputDir, ex
         return { result, errors: [`Empty work-dir [${workDir}] - nothing to process`] };
     }
     fs.mkdirSync(outputDir.toString(), { recursive: true });
-    const errors = [];
-    const scopeResult = getResultsForScopes(excludeScopes, outputDir, workDir, platform, errors);
+    const scopeResult = getResultsForScopes(excludeScopes, outputDir, workDir, platform);
     //sort && unique
     let licenses = scopeResult.licenses.filter((l, i, list) => i === list.findIndex((item) => item.name === l.name && item.version === l.version)).sort((a, b) => `${a.toString()}`.localeCompare(`${b.toString()}`));
     let dependencies = scopeResult.dependencies.filter((d, i, list) => i === list.findIndex((item) => item.line === d.line)).sort((a, b) => `${a.line}`.localeCompare(`${b.line}`));
     (0, license_writer_1.saveToFiles)(scopeResult, outputDir);
     setOutputs(result, licenses, dependencies);
     (0, badges_shield_updater_1.updateBadges)(result, workDir, deep);
-    const dependencyErrors = checkDependencies(dependencies, failLicenseRegex, failDependencyRegex);
-    const allErrors = errors.concat(dependencyErrors);
-    result.set('errors', JSON.stringify(allErrors));
     return {
         result: (0, common_processing_1.sortMap)(nullToEmpty ? (0, common_processing_1.replaceNullWithEmptyMap)(result) : result),
-        errors: allErrors
+        errors: checkDependencies(dependencies, failLicenseRegex, failDependencyRegex)
     };
 }
 function extractDependencies(line, scope) {
@@ -488,7 +482,7 @@ function parseDependencies(outputFile, scope) {
     }
     return dependencies;
 }
-function getResultsForScopes(excludeScopes, outputDir, workDir, platform, errors) {
+function getResultsForScopes(excludeScopes, outputDir, workDir, platform) {
     const scopeResult = {
         dependencies: [],
         licenses: []
@@ -500,7 +494,6 @@ function getResultsForScopes(excludeScopes, outputDir, workDir, platform, errors
             let outputFileRaw = path_1.default.join(outputDir.toString(), `${scope}.raw`);
             let command_log = (0, common_processing_1.cmdLog)(workDir, `${mavenCmd} license:add-third-party -U -Dlicense.outputDirectory="${path_1.default.dirname(outputFileRaw)}" -Dlicense.thirdPartyFilename="${path_1.default.basename(outputFileRaw)}" -Dlicense.excludedScopes="${AVAILABLE_SCOPES.filter(s => s !== scope).join(',')}"`);
             if (command_log === null || command_log === void 0 ? void 0 : command_log.toLowerCase().includes('error')) {
-                errors.push(command_log);
                 break;
             }
             let scopeDependencies = parseDependencies(outputFileRaw, scope);
